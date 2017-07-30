@@ -7,6 +7,8 @@ use Test;
 
 plan 10;
 
+for $*REPO.repo-chain { diag $_.WHAT ~ " -> " ~ $_ }
+
 my $dir = tempdir();
 #diag $dir;
 
