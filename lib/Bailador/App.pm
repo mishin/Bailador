@@ -9,11 +9,11 @@ use Bailador::ContentTypes;
 use Bailador::Context;
 use Bailador::Exceptions;
 use Bailador::LogAdapter;
+use Bailador::LogFormatter;
 use Bailador::Route;
 use Bailador::Route::AutoHead;
 use Bailador::Sessions;
 use Bailador::Template::Mojo;
-use Bailador::Utils;
 
 class Bailador::App does Bailador::Routing {
     # has Str $.location is rw = get-app-root().absolute;
@@ -87,8 +87,11 @@ class Bailador::App does Bailador::Routing {
 
     method before-run() {
         # probably a good place for a hook
-        my $formatter = $.config.log-format;
         my @filter    = $.config.log-filter;
+        my $formatter = Bailador::LogFormatter.new(
+            format   => $.config.log-format,
+            colorize => $.config.terminal-color,
+        );
         # https://github.com/jsimonet/log-any/issues/1
         # black magic to increase the logging speed
         Log::Any.add( Log::Any::Pipeline.new(), :overwrite );
@@ -200,10 +203,9 @@ class Bailador::App does Bailador::Routing {
         self!sessions.store(self.response, self.request.env);
     }
 
-    method log-console(DateTime $start, DateTime $end) {
-        my Str $text;
+    method log-request(DateTime $start, DateTime $end, Str $method, Str $uri, Int $http-code) {
         my Str $color;
-        given self.response.code {
+        given $http-code {
             when 200 <= * < 300 {
                 $color = 'green';
             }
@@ -220,10 +222,8 @@ class Bailador::App does Bailador::Routing {
                 $color = 'reset';
             }
         }
-        $text = 'HTTP Status: ' ~ self.response.code;
-        $text = $text ~ ' || Elapsed time : ' ~ $end - $start ~ 's';
-
-        terminal-color($text, $color, self.config);
+        say "log-request $color";
+        Log::Any.trace("Serving $method $uri with $http-code in " ~ $end - $start ~ 's', :extra-fields(color => $color));
     }
 
     multi method baile() {
@@ -298,7 +298,8 @@ class Bailador::App does Bailador::Routing {
 
             LEAVE {
                 my $http-code = self.response.code;
-                Log::Any.trace("Serving $method $uri with $http-code");
+                my DateTime $end = DateTime.now;
+                self.log-request($start, $end, $method, $uri, $http-code);
                 self!done-rendering();
             }
 
@@ -341,8 +342,6 @@ class Bailador::App does Bailador::Routing {
                 }
             }
         }
-        my DateTime $end = DateTime.now;
-        self.log-console($start, $end);
 
         return self.response;
     }

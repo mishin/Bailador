@@ -29,7 +29,7 @@ class Bailador::Configuration {
     has @.watch-list is rw;
 
     ## Terminal output
-    has Bool $.terminal-color is rw = False;
+    has Bool $.terminal-color is rw = True;
 
     ## SESSION RELATED STUFF
     has Str $.cookie-name is rw       = 'bailador';
@@ -40,7 +40,7 @@ class Bailador::Configuration {
 
     ## LOGGING
     has Str $.log-format is rw = '\d (\s) \m';
-    has @.log-filter is rw     = ('severity' => '>=warning');
+    has @.log-filter is rw     = ('severity' => '>=trace');
 
     method !variants($filename) {
         my @pieces = $filename.split('.');
