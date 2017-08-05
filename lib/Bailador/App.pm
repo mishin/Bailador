@@ -204,26 +204,29 @@ class Bailador::App does Bailador::Routing {
     }
 
     method log-request(DateTime $start, DateTime $end, Str $method, Str $uri, Int $http-code) {
-        my Str $color;
+        my $message = "Serving $method $uri with $http-code in " ~ $end - $start ~ 's';
+        #my Str $color;
         given $http-code {
             when 200 <= * < 300 {
-                $color = 'green';
+                Log::Any.trace($message);
             }
             when 300 <= * < 400 {
-                $color = 'magenta';
+                Log::Any.info($message);
+                #$color = 'magenta';
             }
             when 400 <= * < 500 {
-                $color = 'yellow';
+                Log::Any.warning($message);
+                #$color = 'yellow';
             }
             when * < 500 {
-                $color = 'red';
+                Log::Any.error($message);
+                #$color = 'red';
             }
             default {
-                $color = 'reset';
+                Log::Any.error($message);
+                # $color = 'reset';
             }
         }
-        say "log-request $color";
-        Log::Any.trace("Serving $method $uri with $http-code in " ~ $end - $start ~ 's', :extra-fields(color => $color));
     }
 
     multi method baile() {
@@ -308,7 +311,6 @@ class Bailador::App does Bailador::Routing {
                     self.render();
                 }
                 when X::Bailador::NoRouteFound {
-                    Log::Any.notice("No Route was Found for $method $uri");
                     if self.error_handlers{404} {
                         self.render(:status(404), :type<text/html;charset=UTF-8>, content => self.error_handlers{404}());
                     } elsif $.location.defined && "$.location/views/404.xx".IO.e {
@@ -319,13 +321,6 @@ class Bailador::App does Bailador::Routing {
                 }
                 default {
                     Log::Any.error(.gist);
-                    #if ($env<p6w.errors>:exists) {
-                    #    my $err = $env<p6w.errors>;
-                    #    #$err.say(.gist);
-                    #}
-                    #else {
-                    #    note .gist;
-                    #}
 
                     my $err-page;
                     if $!config.mode eq 'development' {
